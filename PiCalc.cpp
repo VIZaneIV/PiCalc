@@ -3,6 +3,8 @@
 #include <fstream>
 #include "mpir/mpirxx.h"
 
+#define MIN_SUBSTRING 0
+#define MAX_SUBSTRING 9999
 using namespace std;
 
 struct PQT
@@ -22,7 +24,7 @@ class Chudnovsky
 
   public:
     Chudnovsky(int digitsNum);
-    void compPi();
+    mpf_class compPi();
 };
 
 Chudnovsky::Chudnovsky(int digitsNum)
@@ -66,7 +68,7 @@ PQT Chudnovsky::compPQT(int n1, int n2)
     return res;
 }
 
-void Chudnovsky::compPi()
+mpf_class Chudnovsky::compPi()
 {
     cout << "**** PI Computation ( " << DIGITS << " digits )" << endl;
 
@@ -78,13 +80,13 @@ void Chudnovsky::compPi()
     mpf_class pi(0, PREC);
     pi  = D * sqrt((mpf_class)E) * PQT.Q;
     pi /= (A * PQT.Q + PQT.T);
-    PI = pi;
 
     // Time (end of computation)
     t1 = clock();
     cout << "TIME (COMPUTE): "
          << (double)(t1 - t0) / CLOCKS_PER_SEC
          << " seconds." << endl;
+    return pi;
 }
 
 void computeLPSArray(const char* pat, int M, int* lps)
@@ -118,7 +120,7 @@ int KMPSearch(const char* pat, char* txt)
     int M = strlen(pat);
     int N = strlen(txt);
 
-    int lps[M];
+    int* lps = new int[M];
 
     computeLPSArray(pat, M, lps);
 
@@ -141,15 +143,16 @@ int KMPSearch(const char* pat, char* txt)
                 i = i + 1;
         }
     }
+    delete[] lps;
   return -1;
 }
 
-void writePi(Chudnovsky obj){
+void writePi(mpf_class pi, int digits){
   // Writing to a file
     clock_t t0 = clock();
     ofstream ofs ("pi.txt");
-    ofs.precision(obj.DIGITS + 1);
-    ofs << obj.PI << endl;
+    ofs.precision(digits + 1);
+    ofs << pi << endl;
 
     // Time (end of writing)
     clock_t t1 = clock();
@@ -175,8 +178,9 @@ void f_pi(mpf_class pi, int start, int end){
 
   ofstream tablefile;
   tablefile.open("table.txt");
-  for (int i = 0; i < end - start; i++){
-    tablefile << i + start << "," << KMPSearch(to_string(i).c_str(), piSubStr) << endl;
+  for (int i = MIN_SUBSTRING; i < MAX_SUBSTRING; i++){
+    int index = (KMPSearch(to_string(i).c_str(), piSubStr) + start);
+    tablefile << i << "," << ((index > 0) ? index - 1 : index) << endl;
   }
   tablefile.close();
 }
@@ -184,15 +188,21 @@ void f_pi(mpf_class pi, int start, int end){
 int main()
 {
   int n = 0;
+  int start = 0, end = 0;
   cout << "Type number of digits you want to compute:\n";
   cin >> n;
 
     try
     {
         Chudnovsky objMain(n);
-        objMain.compPi();
-        writePi(objMain);
-        f_pi(objMain.PI, 10, 30);
+        writePi(objMain.compPi(), objMain.DIGITS);
+        cout << "Enter substring START index:" << endl;
+        cin >> start;
+        cout << "Enter substring END index:" << endl;
+        cin >> end;
+
+        f_pi(objMain.PI, start, end);
+        cout << "Results are inside table.txt" << endl;
     }
     catch (...) {
         cout << "ERROR!" << endl;
